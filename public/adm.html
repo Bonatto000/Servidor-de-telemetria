@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Painel de Administrador</title>
+  <style>
+    body {
+      display: flex;
+      font-family: Arial, sans-serif;
+      padding: 20px;
+      justify-content: center;
+      gap: 20px;
+      box-sizing: border-box;
+      height: calc(100vh - 40px);
+    }
+    .telemetria-container {
+      border: 1px solid #ccc;
+      padding: 20px;
+      flex: 1;
+      overflow-y: auto;
+    }
+    .telemetria-item {
+      margin-bottom: 10px;
+    }
+    .controls {
+      flex: 0 0 250px; 
+      margin-right: 20px;
+    }
+    .left {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+    }
+  </style>
+</head>
+<body>
+  <div class="left">
+    <h1>Painel de Administrador</h1>
+    <button onclick="downloadCSV()">Baixar Telemetrias em CSV</button>
+    <button onclick="pausarTelemetria()">Pausar Telemetria</button>
+    <button onclick="retomarTelemetria()">Retomar Telemetria</button>
+    <button onclick="ligarLed()">Chamar box</button>
+    <button onclick="desligarLed()">Voltar pista</button>
+    <button onclick="blinkLed()">Acionar buzina</button>
+     <button onclick="blinkLedThrice()">Acionar farol</button>
+     <button onclick="ativarDiferencial()">Ativar Diferencial</button>
+     <button onclick="desativarDiferencial()">Desativar Diferencial</button>
+    <button onclick="logout()">Voltar para Página Inicial</button>
+    
+  </div>
+  <div class="telemetria-container" id="telemetriaContainer">
+    <h2>Dados de Telemetria Recebidos:</h2>
+    <div id="telemetriaData"></div>
+  </div>
+
+  <script>
+    const telemetriaDataElement = document.getElementById('telemetriaData');
+
+    // Estabelece conexão SSE com o endpoint no servidor
+    const eventSource = new EventSource('/sse-telemetria');
+
+    // Define o que fazer quando um novo evento é recebido
+    eventSource.addEventListener('message', function(event) {
+      const data = JSON.parse(event.data);
+
+      // Cria um novo item de telemetria para exibir os dados recebidos
+      const telemetriaItem = document.createElement('div');
+      telemetriaItem.classList.add('telemetria-item');
+      telemetriaItem.innerHTML = `
+        <div>Velocidade: ${data.velocidade}</div>
+        <div>Velocidade do Eixo Traseiro: ${data.velocidadeEixoTraseiro}</div>
+        <div>Velocidade do Eixo Dianteiro: ${data.velocidadeEixoDianteiro}</div>
+        <div>RPM motor: ${data.rpmMotor}</div>
+        <div>Temperatura CVT: ${data.temperaturaCVT}</div>
+        <div>Aceleração Eixo X: ${data.aceleracaoEixoX}</div>
+        <div>Aceleração Eixo Y: ${data.aceleracaoEixoY}</div>
+        <div>Aceleração Eixo Z: ${data.aceleracaoEixoZ}</div>
+        <div>Freio: ${data.freio ? 'Ativado' : 'Desativado'}</div>
+        <div>Longitude: ${data.longitude}</div>
+        <div>Latitude: ${data.latitude}</div>
+        <div>Velocidade GPS: ${data.velocidadeGPS}</div>
+        <div>Curso: ${data.curso}</div>
+        <div>Data: ${new Date(data.dataCompleta).toLocaleString()}</div>
+        <div>Tensão da bateria: ${data.tensaoBateria}</div>
+        <div>Status do diferencial: ${data.statusDiferencial ? 'Ativado' : 'Desativado'}</div>
+        <div>Horário recebido pelo servidor: ${new Date(data.timestamp).toLocaleString()}</div>
+      `;
+
+      // Adiciona o novo item de telemetria no topo da lista
+      telemetriaDataElement.prepend(telemetriaItem);
+    });
+
+    eventSource.addEventListener('error', function(event) {
+      console.error('Erro na conexão SSE', event);
+    });
+
+    function showMessage(message) {
+      const msgElement = document.createElement('div');
+      msgElement.textContent = message;
+      msgElement.style.position = 'fixed';
+      msgElement.style.bottom = '10px';
+      msgElement.style.right = '10px';
+      msgElement.style.backgroundColor = '#333';
+      msgElement.style.color = '#fff';
+      msgElement.style.padding = '10px';
+      msgElement.style.borderRadius = '5px';
+      document.body.appendChild(msgElement);
+      setTimeout(() => document.body.removeChild(msgElement), 3000);
+    }
+
+    // Função para baixar CSV
+    function downloadCSV() {
+      window.location.href = '/download-csv';
+      showMessage('Dowload telemetrias iniciado')
+    }
+
+    // Função para pausar telemetria
+    function pausarTelemetria() {
+      fetch('/pausar-telemetria', {
+        method: 'POST',
+        credentials: 'include'
+      })
+      .then(response => response.json())
+      .then(data => 
+        {console.log('Telemetria pausada:', data);
+        showMessage('Telemetria pausada');
+        })
+      .catch(error => {
+        console.error('Erro ao pausar telemetria', error);
+        showMessage('Erro ao pausar telemetria');
+        });
+    }
+
+    // Função para retomar telemetria
+    function retomarTelemetria() {
+      fetch('/retomar-telemetria', {
+        method: 'POST',
+        credentials: 'include'
+      })
+      .then(response => response.json())
+      .then(data => {
+        console.log('Telemetria retomada:', data);
+        showMessage('Telemetria retomada');
+      })
+      .catch(error => {
+        console.error('Erro ao retomar telemetria', error);
+        showMessage('Erro ao retomar telemetria');
+      });
+    }
+
+    // Função para ligar o LED
+    function ligarLed() {
+      fetch('/ligar-led', { method: 'POST' })
+        .then(response => response.json())
+        .then(data => {
+          console.log('LED ligado:', data);
+          showMessage('Botão chamar box acionado');
+        })
+        .catch(error => {
+          console.error('Erro ao ligar LED', error);
+          showMessage('Erro ao acionar botão chamar box');
+      });
+    }
+
+    // Função para desligar o LED
+    function desligarLed() {
+      fetch('/desligar-led', { method: 'POST' })
+        .then(response => response.json())
+        .then(data => {
+          console.log('LED desligado:', data);
+          showMessage('Botão voltar pista acionado');
+        })
+        .catch(error => {
+          console.error('Erro ao desligar LED', error);
+        showMessage('Erro ao acionar o botão voltar pista')
+      });
+    }
+
+    // Função para piscar o LED 2x
+    function blinkLed() {
+        fetch('/blink-led', { method: 'POST' })
+          .then(response => response.text())
+          .then(data => {
+            console.log('Piscou 2x');
+            showMessage('Buzina acionada');
+          })
+          .catch(error => {
+            console.error('Erro ao piscar LED', error);
+            showMessage('Erro ao acionar buzina');
+          })
+    }
+
+    // Função para piscar o LED 3x
+    function blinkLedThrice() {
+        fetch('/blink-led-thrice', { method: 'POST' })
+          .then(response => response.text())
+          .then(data => {
+            console.log('Piscou 3x');
+            showMessage('Farol aceso');
+          })
+          .catch(error => {
+            console.error('Erro ao piscar LED', error);
+            showMessage('Erro ao acionar farol');
+          })
+    }
+        
+    // Função para ativar o diferencial
+function ativarDiferencial() {
+  fetch('/atualizar-diferencial', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ statusDiferencial: true }), 
+  })
+  .then(response => {
+    if (response.ok) {
+      console.log('Diferencial ativado com sucesso');
+      showMessage('Diferencial ativado');
+    } else {
+      console.error('Erro ao ativar diferencial');
+    }
+  })
+  .catch(error => {
+    console.error('Erro na requisição:', error);
+  });
+}
+
+// Função para desativar o diferencial
+function desativarDiferencial() {
+  fetch('/atualizar-diferencial', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ statusDiferencial: false }), 
+  })
+  .then(response => {
+    if (response.ok) {
+      console.log('Diferencial desativado com sucesso');
+      showMessage('Diferencial desativado');
+    } else {
+      console.error('Erro ao desativar diferencial');
+    }
+  })
+  .catch(error => {
+    console.error('Erro na requisição:', error);
+  });
+}
+
+    //Função para logout
+    function logout() {
+      fetch('/logout', {method: 'POST', credentials: 'include'})
+      .then(response => response.json())
+      .then(data => {
+        console.log('Logout realizado:', data);
+        showMessage('Logout realizado com sucesso');
+        window.location.href = '/index.html';
+      })
+      .catch(error => {
+        console.error('Erro ao fazer logout', error);
+        showMessage('Erro ao fazer logout')
+      })
+    }
+  </script>
+</body>
+</html>
