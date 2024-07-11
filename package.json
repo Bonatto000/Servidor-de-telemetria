@@ -1,0 +1,33 @@
+{
+  "name": "dbconnectapp",
+  "version": "1.0.0",
+  "description": "connect mongodb with express",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "telemetry": "node telemetria.js",
+    "database": "node server.js",
+    "start": "concurrently \"npm run telemetry\" \"npm run database\""
+  },
+  "author": "Gordon",
+  "license": "ISC",
+  "dependencies": {
+    "bcrypt": "^5.1.1",
+    "body-parser": "^1.20.2",
+    "dotenv": "^16.4.5",
+    "eventsource": "^2.0.2",
+    "express": "^4.19.2",
+    "express-session": "^1.18.0",
+    "fs": "^0.0.1-security",
+    "joi": "^17.13.3",
+    "json2csv": "^6.0.0-alpha.2",
+    "mongoose": "^8.4.1",
+    "node-fetch": "^3.3.2",
+    "path": "^0.12.7",
+    "serialport": "^12.0.0"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2",
+    "typescript": "^5.4.5"
+  }
+}
