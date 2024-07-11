@@ -176,9 +176,9 @@ void atualizarStatusDiferencial(bool status) {
     Serial.print("Enviando requisição GET para atualizar status do diferencial: ");
     Serial.println(url);
 
-    http.begin(url); // Inicia a requisição GET com a URL completa
+    http.begin(url); 
 
-    int httpResponseCode = http.GET(); // Executa a requisição GET
+    int httpResponseCode = http.GET(); 
 
     if (httpResponseCode > 0) {
       Serial.print("Status do diferencial atualizado para ");
@@ -191,7 +191,7 @@ void atualizarStatusDiferencial(bool status) {
     }
 
     http.end();
-    diferencialStatus = status; // Atualiza o estado local se a requisição for bem-sucedida
+    diferencialStatus = status; 
   }
 }
 
