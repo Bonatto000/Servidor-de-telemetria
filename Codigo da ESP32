@@ -1,0 +1,248 @@
+#include <WiFi.h>
+#include <HTTPClient.h>
+#include <ArduinoJson.h>
+#include <WebServer.h>
+
+const char* ssid = "Riachuelo2G";
+const char* password = "1020302010";
+const char* serverAddress = "http://192.168.15.21";
+const int serverPort = 7000;
+const char* enviarTelemetriaEndpoint = "/enviar-telemetria";
+const char* pausarTelemetriaEndpoint = "/pausar-telemetria";
+const char* retomarTelemetriaEndpoint = "/retomar-telemetria";
+const char* atualizarDiferencialEndpoint = "/atualizar-diferencial";
+
+const int ledPin = 2; 
+WebServer server(80);
+
+bool ledState = LOW;
+unsigned long previousMillis = 0;
+const long interval = 1000; 
+bool diferencialStatus = true;
+
+// Função para gerar números aleatórios dentro de um intervalo
+int randomInt(int min, int max) {
+  return random(min, max);
+}
+
+// Função para gerar números aleatórios de ponto flutuante dentro de um intervalo
+float randomFloat(float min, float max) {
+  return min + static_cast<float>(random(0, RAND_MAX)) / (static_cast<float>(RAND_MAX / (max - min)));
+}
+
+void enviarDadosServidor() {
+  WiFiClient client;
+
+  HTTPClient http;
+
+  String url = String(serverAddress) + ":" + String(serverPort) + enviarTelemetriaEndpoint;
+
+  StaticJsonDocument<200> jsonDoc;
+
+  // Gerando valores aleatórios para os dados de telemetria
+  jsonDoc["velocidade"] = randomInt(0, 70); // Velocidade de 0 a 70 km/h
+  jsonDoc["velocidadeEixoTraseiro"] = randomInt(0, 80); // Velocidade do eixo traseiro
+  jsonDoc["velocidadeEixoDianteiro"] = randomInt(0, 80); // Velocidade do eixo dianteiro
+  jsonDoc["rpmMotor"] = randomInt(0, 6000); // RPM do motor de 0 a 6000 RPM
+  jsonDoc["temperaturaCVT"] = randomFloat(0.0, 100.0); // Temperatura da CVT de 0.0 a 100.0 graus Celsius
+  jsonDoc["aceleracaoEixoX"] = randomFloat(-2.0, 2.0); // Aceleração no eixo X
+  jsonDoc["aceleracaoEixoY"] = randomFloat(-2.0, 2.0); // Aceleração no eixo Y
+  jsonDoc["aceleracaoEixoZ"] = randomFloat(0.0, 5.0); // Aceleração no eixo Z
+  jsonDoc["freio"] = random(0, 2); // Estado do freio (0 ou 1)
+  jsonDoc["longitude"] = randomFloat(-180.0, 180.0); // Longitude 
+  jsonDoc["latitude"] = randomFloat(-90.0, 90.0); // Latitude 
+  jsonDoc["velocidadeGPS"] = randomFloat(0.0, 70.0); // Velocidade GPS em km/h
+  jsonDoc["curso"] = randomFloat(0.0, 360.0); // Curso em graus
+  jsonDoc["dataCompleta"] = "2024-06-28T12:00:00"; // Data completa (exemplo)
+  jsonDoc["tensaoBateria"] = randomFloat(11.0, 16.0); // Tensão da bateria de 11.0 a 16.0 volts
+  jsonDoc["statusDiferencial"] = diferencialStatus; // Estado do diferencial
+
+  String postData;
+  serializeJson(jsonDoc, postData);
+
+  Serial.print("Dados a serem enviados: ");
+  Serial.println(postData);  
+
+  http.begin(client, url);
+  http.addHeader("Content-Type", "application/json");
+
+  int httpResponseCode = http.POST(postData);
+
+  if (httpResponseCode > 0) {
+    Serial.print("Resposta do servidor: ");
+    Serial.println(httpResponseCode);
+  } else {
+    Serial.print("Erro na requisição HTTP: ");
+    Serial.println(httpResponseCode);
+  }
+
+  http.end();
+}
+
+// Função para pausar telemetria
+void pausarTelemetria() {
+  WiFiClient client;
+
+  HTTPClient http;
+
+  String url = String(serverAddress) + ":" + String(serverPort) + pausarTelemetriaEndpoint;
+
+  int httpResponseCode = http.POST(url);
+
+  if (httpResponseCode > 0) {
+    Serial.print("Telemetria pausada. Resposta do servidor: ");
+    Serial.println(httpResponseCode);
+  } else {
+    Serial.print("Erro ao pausar telemetria. Código de resposta: ");
+    Serial.println(httpResponseCode);
+  }
+
+  http.end();
+}
+
+// Função para retomar telemetria
+void retomarTelemetria() {
+  WiFiClient client;
+
+  HTTPClient http;
+
+  String url = String(serverAddress) + ":" + String(serverPort) + retomarTelemetriaEndpoint;
+
+  int httpResponseCode = http.POST(url);
+
+  if (httpResponseCode > 0) {
+    Serial.print("Telemetria retomada. Resposta do servidor: ");
+    Serial.println(httpResponseCode);
+  } else {
+    Serial.print("Erro ao retomar telemetria. Código de resposta: ");
+    Serial.println(httpResponseCode);
+  }
+
+  http.end();
+}
+
+
+
+void handleLedOn() {
+  digitalWrite(ledPin, HIGH); // Liga o LED
+  server.send(200, "text/plain", "LED ligado");
+}
+
+void handleLedOff() {
+  digitalWrite(ledPin, LOW); // Desliga o LED
+  server.send(200, "text/plain", "LED desligado");
+}
+
+// Função para alternar o estado do LED
+void toggleLed() {
+  ledState = !ledState;
+  digitalWrite(ledPin, ledState);
+  if (ledState == HIGH) {
+    server.send(200, "text/plain", "LED ligado");
+  } else {
+    server.send(200, "text/plain", "LED desligado");
+  }
+}
+
+// Função para piscar o LED 2x
+void blinkLedTwice() {
+  for (int i = 0; i < 2; i++) {
+    digitalWrite(ledPin, HIGH);
+    delay(500);
+    digitalWrite(ledPin, LOW);
+    delay(500);
+  }
+  server.send(200, "text/plain", "LED piscou duas vezes e está desligado");
+}
+
+// Função para piscar o LED 3 vezes
+void blinkLedThrice() {
+  for (int i = 0; i < 3; i++) {
+    digitalWrite(ledPin, HIGH);
+    delay(500);
+    digitalWrite(ledPin, LOW);
+    delay(500);
+  }
+  server.send(200, "text/plain", "LED piscou três vezes e está desligado");
+}
+
+// Função para enviar status do diferencial para o servidor
+void atualizarStatusDiferencial(bool status) {
+  if (diferencialStatus != status) {
+    String url = String(serverAddress) + ":" + String(serverPort) + atualizarDiferencialEndpoint + "?statusDiferencial=" + String(status ? "1" : "0");
+
+    HTTPClient http;
+
+    Serial.print("Enviando requisição GET para atualizar status do diferencial: ");
+    Serial.println(url);
+
+    http.begin(url); // Inicia a requisição GET com a URL completa
+
+    int httpResponseCode = http.GET(); // Executa a requisição GET
+
+    if (httpResponseCode > 0) {
+      Serial.print("Status do diferencial atualizado para ");
+      Serial.println(status ? "ativado." : "desativado.");
+      Serial.print("Resposta do servidor: ");
+      Serial.println(http.getString());
+    } else {
+      Serial.print("Erro ao atualizar status do diferencial. Código de resposta: ");
+      Serial.println(httpResponseCode);
+    }
+
+    http.end();
+    diferencialStatus = status; // Atualiza o estado local se a requisição for bem-sucedida
+  }
+}
+
+void handleAtualizarDiferencial() {
+  if (!server.hasArg("statusDiferencial")) {
+    server.send(400, "text/plain", "Parâmetro 'statusDiferencial' não encontrado");
+    return;
+  }
+
+  String statusStr = server.arg("statusDiferencial");
+  bool status = statusStr.toInt();
+
+  atualizarStatusDiferencial(status);
+
+  server.send(200, "text/plain", "Status do diferencial atualizado");
+}
+
+void setup() {
+  Serial.begin(115200);
+  pinMode(ledPin, OUTPUT);
+  
+  WiFi.begin(ssid, password);
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(5000);
+    Serial.println("Conectando à rede WiFi...");
+  }
+  Serial.println("Conectado à rede WiFi!");
+
+  // Imprime o endereço IP da ESP32
+  Serial.print("Endereço IP da ESP32: ");
+  Serial.println(WiFi.localIP());
+
+  randomSeed(analogRead(0));
+
+  // Configura o servidor para responder às requisições HTTP
+  server.on("/led/on", HTTP_GET, handleLedOn);
+  server.on("/led/off", HTTP_GET, handleLedOff);
+  server.on("/pausar-telemetria", HTTP_POST, pausarTelemetria);
+  server.on("/retomar-telemetria", HTTP_POST, retomarTelemetria);
+  server.on("/blink-led", HTTP_GET, blinkLedTwice);
+  server.on("/blink-led-thrice", HTTP_GET, blinkLedThrice);
+  server.on("/atualizar-diferencial", HTTP_GET, handleAtualizarDiferencial);
+
+  server.begin();
+}
+
+void loop() {
+  server.handleClient();
+  unsigned long currentMillis = millis();
+  if (currentMillis - previousMillis >= interval) {
+    previousMillis = currentMillis;
+    enviarDadosServidor();
+  }
+}
